@@ -1,9 +1,17 @@
-version: '3.8'
+version: '3.9'
+
 services:
   bingo:
-    build: .
+    build:
+      context: .
+      target: production
     ports:
-      - "3005:3000" # внешний 3005, внутри 3000
-    restart: unless-stopped
+      - "3005:3000"  # внешний 3005 → внутри 3000
     environment:
       NODE_ENV: production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/session || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
