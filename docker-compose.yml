@@ -4,9 +4,8 @@ services:
   bingo:
     build:
       context: .
-      target: production
     ports:
-      - "3005:3000"  # внешний 3005 → внутри 3000
+      - "3005:3000"
     environment:
       NODE_ENV: production
     restart: unless-stopped

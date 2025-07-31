@@ -1,8 +1,8 @@
-# builder: собираем фронтенд
+# builder: собираем фронтенд и зависимости
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# ставим бэки и фронт зависимости
+# копируем манифесты и ставим зависимости для бэка и фронта
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
@@ -14,15 +14,14 @@ COPY . .
 # собираем фронтенд
 RUN cd frontend && npm run build
 
-# финальный рантайм
-FROM node:20-alpine
+# финальный образ
+FROM node:20-alpine AS production
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci --production
 
 COPY server.js .
-# подставляем уже собранные статику
 COPY --from=builder /app/frontend/dist ./public
 
 EXPOSE 3000
