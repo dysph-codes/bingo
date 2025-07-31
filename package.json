@@ -5,11 +5,15 @@
   "main": "server.js",
   "license": "MIT",
   "scripts": {
+    "dev": "concurrently \"node server.js\" \"cd frontend && npm run dev\"",
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "nanoid": "^4.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
   }
 }

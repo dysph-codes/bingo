@@ -1,0 +1,65 @@
+# Node modules
+node_modules/
+**/node_modules/
+
+# Vite build output (if you ever output to dist/public)
+frontend/dist/
+public/
+# If you copy build into public manually
+public/*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Lockfiles (optional to ignore if you want to commit them — usually you keep them)
+# Uncomment if you do NOT want to track lockfiles (not recommended for reproducible installs)
+# package-lock.json
+# frontend/package-lock.json
+# pnpm-lock.yaml
+# yarn.lock
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.log
+
+# Mac-specific
+.AppleDouble
+.LSOverride
+
+# Temporary
+*.tmp
+*.temp
+
+# Coverage/output from tests (if added later)
+coverage/
+*.lcov
+
+# Docker
+# if you build images locally
+docker-compose.override.yml
+*.env.local
+
+# Optional: ignore built frontend if you treat it as generated
+# (if you commit the built public folder for prod, remove/comment this)
+# frontend/dist/
+
+# Misc
+*.cache
