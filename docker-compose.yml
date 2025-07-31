@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  bingo:
+    build: .
+    ports:
+      - "3005:3000" # внешний 3005, внутри 3000
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production

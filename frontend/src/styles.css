@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* дополнительная мягкая тень и плавность */
+.card {
+  @apply bg-card rounded-2xl p-4 shadow-lg;
+}
+button {
+  @apply font-medium transition-all;
+}
