@@ -9,7 +9,7 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-// in-memory sessions: { sessionId: { id, name, size, items, marks, updatedAt } }
+// in-memory sessions: sessionId -> session object
 const sessions = new Map();
 
 function createNewSession({ name = '', size = 4, items = [] } = {}) {
@@ -78,9 +78,12 @@ app.post('/api/reset-marks', (req, res) => {
   res.json(s);
 });
 
-// serve built frontend in prod if exists
+// serve static built frontend
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/', (req, res) => {
+
+// SPA fallback: any non-API path returns index.html
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
@@ -88,20 +91,17 @@ const httpServer = http.createServer(app);
 const io = new Server(httpServer, {
   path: '/socket.io',
   cors: {
-    origin: '*', // можно ограничить позже
+    origin: '*',
     methods: ['GET', 'POST'],
   },
 });
 
-// хранит какие socket присоединены к какой sessionId (по query param)
 io.on('connection', (socket) => {
-  // ожидаем, что клиент несло sessionId как query param
   const { sessionId } = socket.handshake.query || {};
   console.log('socket connected', socket.id, 'sessionId=', sessionId);
   socket.emit('connected');
 
   socket.on('bingo', (data) => {
-    // оповещаем всех остальных, кроме источника
     console.log('received bingo event from', data);
     io.emit('other-bingo', {
       sessionId: data.sessionId,
