@@ -26,8 +26,8 @@ function useSounds() {
     const osc2 = ctx.createOscillator();
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.25, now);
-    osc1.frequency.setValueAtTime(440, now); // A4
-    osc2.frequency.setValueAtTime(550, now); // C#5
+    osc1.frequency.setValueAtTime(440, now);
+    osc2.frequency.setValueAtTime(550, now);
     osc1.type = 'sawtooth';
     osc2.type = 'triangle';
     osc1.connect(gain);
@@ -61,60 +61,60 @@ function useSounds() {
 }
 
 function ConfettiCanvas() {
-  const canvasRef = React.useRef(null);
-  const rafRef = React.useRef(null);
-  const particlesRef = React.useRef([]);
-  const timeoutRef = React.useRef(null);
+  const canvasRef = useRef(null);
+  const rafRef = useRef(null);
+  const particlesRef = useRef([]);
+  const timeoutRef = useRef(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+    let w = (canvas.width = window.innerWidth);
+    let h = (canvas.height = window.innerHeight);
 
-    const createParticles = () => {
-      const p = [];
-      const colors = ['#10b981', '#7c3aed', '#fff', '#ffda6b', '#5fdde5'];
+    const create = () => {
+      const arr = [];
+      const cols = ['#10b981', '#7c3aed', '#fff', '#ffda6b', '#5fdde5'];
       for (let i = 0; i < 140; i++) {
-        p.push({
-          x: Math.random() * width,
-          y: Math.random() * -height,
+        arr.push({
+          x: Math.random() * w,
+          y: Math.random() * -h,
           vx: (Math.random() - 0.5) * 5,
           vy: Math.random() * 4 + 2,
           size: Math.random() * 6 + 4,
-          color: colors[Math.floor(Math.random() * colors.length)],
+          color: cols[Math.floor(Math.random() * cols.length)],
           life: Math.random() * 60 + 60,
         });
       }
-      particlesRef.current = p;
+      particlesRef.current = arr;
     };
 
-    const resize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+    const onResize = () => {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
     };
-    window.addEventListener('resize', resize);
-    createParticles();
+    window.addEventListener('resize', onResize);
+    create();
 
     const draw = () => {
-      ctx.clearRect(0, 0, width, height);
-      particlesRef.current.forEach((particle) => {
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        particle.life -= 1;
-        if (particle.life <= 0 || particle.y > height + 20) {
-          particle.x = Math.random() * width;
-          particle.y = -10;
-          particle.vx = (Math.random() - 0.5) * 5;
-          particle.vy = Math.random() * 4 + 2;
-          particle.size = Math.random() * 6 + 4;
-          particle.life = Math.random() * 60 + 60;
+      ctx.clearRect(0, 0, w, h);
+      particlesRef.current.forEach((p) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0 || p.y > h + 20) {
+          p.x = Math.random() * w;
+          p.y = -10;
+          p.vx = (Math.random() - 0.5) * 5;
+          p.vy = Math.random() * 4 + 2;
+          p.size = Math.random() * 6 + 4;
+          p.life = Math.random() * 60 + 60;
         }
-        ctx.fillStyle = particle.color;
+        ctx.fillStyle = p.color;
         ctx.beginPath();
-        const scale = Math.max(0.2, particle.life / 120);
-        ctx.arc(particle.x, particle.y, particle.size * scale, 0, Math.PI * 2);
+        const scale = Math.max(0.2, p.life / 120);
+        ctx.arc(p.x, p.y, p.size * scale, 0, Math.PI * 2);
         ctx.fill();
       });
       rafRef.current = requestAnimationFrame(draw);
@@ -123,25 +123,20 @@ function ConfettiCanvas() {
 
     timeoutRef.current = setTimeout(() => {
       cancelAnimationFrame(rafRef.current);
-      ctx.clearRect(0, 0, width, height);
+      ctx.clearRect(0, 0, w, h);
     }, 3000);
 
     return () => {
       clearTimeout(timeoutRef.current);
       cancelAnimationFrame(rafRef.current);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', onResize);
     };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        pointerEvents: 'none',
-        zIndex: 9999,
-      }}
+      style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9999 }}
     />
   );
 }
@@ -149,8 +144,8 @@ function ConfettiCanvas() {
 function computeBingos(items, marks, size) {
   const lines = [];
   for (let r = 0; r < size; r++) {
-    let ok = true;
-    const idxs = [];
+    let ok = true,
+      idxs = [];
     for (let c = 0; c < size; c++) {
       const i = r * size + c;
       idxs.push(i);
@@ -159,8 +154,8 @@ function computeBingos(items, marks, size) {
     if (ok) lines.push({ type: 'row', indices: idxs });
   }
   for (let c = 0; c < size; c++) {
-    let ok = true;
-    const idxs = [];
+    let ok = true,
+      idxs = [];
     for (let r = 0; r < size; r++) {
       const i = r * size + c;
       idxs.push(i);
@@ -168,30 +163,28 @@ function computeBingos(items, marks, size) {
     }
     if (ok) lines.push({ type: 'col', indices: idxs });
   }
-  let okDiag1 = true;
-  const diag1 = [];
+  let ok1 = true,
+    diag1 = [];
   for (let i = 0; i < size; i++) {
     const idx = i * size + i;
     diag1.push(idx);
-    if (!marks[idx]) okDiag1 = false;
+    if (!marks[idx]) ok1 = false;
   }
-  if (okDiag1) lines.push({ type: 'diag', indices: diag1 });
-  let okDiag2 = true;
-  const diag2 = [];
+  if (ok1) lines.push({ type: 'diag', indices: diag1 });
+  let ok2 = true,
+    diag2 = [];
   for (let i = 0; i < size; i++) {
     const idx = i * size + (size - 1 - i);
     diag2.push(idx);
-    if (!marks[idx]) okDiag2 = false;
+    if (!marks[idx]) ok2 = false;
   }
-  if (okDiag2) lines.push({ type: 'diag', indices: diag2 });
+  if (ok2) lines.push({ type: 'diag', indices: diag2 });
   return lines;
 }
 
 function OtherBingoBanner({ info, onDone }) {
   useEffect(() => {
-    const t = setTimeout(() => {
-      onDone();
-    }, 4000);
+    const t = setTimeout(onDone, 4000);
     return () => clearTimeout(t);
   }, [onDone]);
 
@@ -223,55 +216,47 @@ export default function Game() {
   const sessionId = getSessionIdFromURL();
   const { playWin, playOther } = useSounds();
 
-  const socketEndpoint = (() => {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return `http://${window.location.hostname}:3000`;
-    }
-    return window.location.origin;
-  })();
+  const socketEndpoint = window.location.origin + (window.location.port === '5173' ? ':3000' : '');
 
+  // --------- здесь инициализируем ровно 1 раз для данного sessionId ----------
   useEffect(() => {
     if (!sessionId) return;
-    // один раз инициализируем, с query sessionId
-    socketRef.current = io(socketEndpoint, {
+    const socket = io(socketEndpoint, {
       path: '/socket.io',
       query: { sessionId },
       transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 5,
     });
+    socketRef.current = socket;
 
-    socketRef.current.on('connect', () => {
-      console.log('socket connected', socketRef.current.id, 'sessionId=', sessionId);
+    socket.on('connect', () => {
+      console.log('socket connected', socket.id, 'sessionId=', sessionId);
     });
-    socketRef.current.on('other-bingo', (data) => {
-      if (data.sessionId === sessionId) return; // игнорировать своё
-      console.log('received other-bingo event', data);
+    socket.on('other-bingo', (data) => {
+      if (data.sessionId === sessionId) return;
+      console.log('received other-bingo', data);
       setOtherBingoInfo(data);
       playOther();
     });
-    socketRef.current.on('disconnect', (reason) => {
+    socket.on('disconnect', (reason) => {
       console.log('socket disconnected', reason);
     });
 
     return () => {
-      socketRef.current?.disconnect();
+      socket.disconnect();
     };
-  }, [socketEndpoint, sessionId, playOther]);
+  }, [socketEndpoint, sessionId]); // <<** убрали playOther из зависимостей! **
 
+  // загрузка сессии / детект бинго ----------------
   const load = async () => {
     setLoading(true);
     if (!sessionId) {
-      setError('sessionId missing in URL. Go to settings to create one.');
+      setError('sessionId missing in URL');
       setLoading(false);
       return;
     }
     try {
       const res = await fetch(`/api/session${buildQuery(sessionId)}`);
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(`Fetch session failed: ${res.status} ${txt}`);
-      }
+      if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setSession(data);
       setMarks(data.marks || {});
@@ -280,33 +265,26 @@ export default function Game() {
 
       const hasBingoNow = lines.length > 0;
       const hadBingoBefore = prevHasBingoRef.current;
-
       if (hasBingoNow && !hadBingoBefore) {
-        console.log('new bingo detected, emitting to server', {
-          sessionId: data.id,
-          name: data.name,
-        });
-        socketRef.current?.emit('bingo', { sessionId: data.id, name: data.name });
+        console.log('new bingo, emit', data.id, data.name);
+        socketRef.current.emit('bingo', { sessionId: data.id, name: data.name });
         setConfettiKey((k) => k + 1);
         playWin();
       }
-
       prevHasBingoRef.current = hasBingoNow;
       setError(null);
     } catch (e) {
-      console.error('Failed to load session', e);
-      setError('Session load error. Перейди в настройки и выбери сессию.');
+      console.error(e);
+      setError('Session load error');
     }
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line
   }, [sessionId]);
 
   const toggle = async (i) => {
-    if (!sessionId) return;
     await fetch(`/api/mark${buildQuery(sessionId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -314,117 +292,70 @@ export default function Game() {
     });
     await load();
   };
-
   const resetMarks = async () => {
-    if (!sessionId) return;
     await fetch(`/api/reset-marks${buildQuery(sessionId)}`, { method: 'POST' });
     await load();
   };
 
-  if (loading) return <div className="card">Loading...</div>;
-  if (error) {
+  // ---------------- вёрстка --------------------
+  if (loading) return <div className="card">Loading…</div>;
+  if (error)
     return (
       <div className="card">
-        <div className="mb-4">{error}</div>
-        <div className="button-group">
-          <a href={`/settings${buildQuery(sessionId)}`}>
-            <button className="primary">Настроить / новая сессия</button>
-          </a>
-        </div>
+        <p>{error}</p>
+        <a href={`/settings${buildQuery(sessionId)}`}>
+          <button className="primary">Go to Settings</button>
+        </a>
       </div>
     );
-  }
-  if (!session || !session.items?.length) {
-    return (
-      <div className="card">
-        <div className="text-center">
-          <p className="mb-2">
-            No active session. Перейди в <strong>Settings</strong> и создай игру.
-          </p>
-          <div className="button-group justify-center">
-            <a href={`/settings${buildQuery(sessionId)}`}>
-              <button className="primary">Настроить</button>
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (!session) return null;
 
   const size = session.size;
   const hasBingo = bingos.length > 0;
 
   return (
-    <div className="space-y-6">
-      {otherBingoInfo && otherBingoInfo.sessionId !== sessionId && (
-        <OtherBingoBanner
-          info={otherBingoInfo}
-          onDone={() => {
-            setOtherBingoInfo(null);
-          }}
-        />
-      )}
+    <div className="space-y-6 container">
+      {otherBingoInfo && <OtherBingoBanner info={otherBingoInfo} onDone={() => setOtherBingoInfo(null)} />}
       {hasBingo && <ConfettiCanvas key={confettiKey} />}
 
-      <div className="card flex flex-col md:flex-row gap-6 game-top">
-        <div className="flex-1">
-          <h2>{session.name || 'Bingo Game'}</h2>
-          <div className="small">
-            Grid: {size}×{size}
-            {otherBingoInfo && otherBingoInfo.sessionId !== sessionId && (
-              <div className="text-sm text-gray-300 mt-1">
-                Другой бинго: <strong>{otherBingoInfo.name || otherBingoInfo.sessionId}</strong>
-              </div>
-            )}
-          </div>
-          <div className="mt-3 button-group">
-            <button onClick={resetMarks} className="primary">
-              Reset marks
-            </button>
-            <button onClick={load} className="secondary">
-              Refresh
-            </button>
-            <a href={`/settings${buildQuery(sessionId)}`}>
-              <button className="secondary">Edit session</button>
-            </a>
-          </div>
-          {hasBingo && (
-            <div style={{ marginTop: '10px', position: 'relative' }}>
-              <div className="bingo-badge" aria-label="Bingo!">
-                🎉 <strong>BINGO!</strong>
-              </div>
-            </div>
-          )}
+      <header>
+        <div className="brand">
+          <div className="dot" /> Bingo
         </div>
-        <div className="flex items-center gap-4">
-          <div className="small">Click cell to toggle mark. Bingo logic auto-detected.</div>
+      </header>
+
+      <div className="card game-top">
+        <h2>{session.name || 'Bingo'}</h2>
+        <div className="small">Grid: {size}×{size}</div>
+        <div className="button-group" style={{ marginTop: '1rem' }}>
+          <button onClick={resetMarks} className="primary">Reset marks</button>
+          <button onClick={load} className="secondary">Refresh</button>
+          <a href={`/settings${buildQuery(sessionId)}`}>
+            <button className="secondary">Edit session</button>
+          </a>
+        </div>
+        {hasBingo && (
+          <div style={{ marginTop: '1rem' }}>
+            <div className="bingo-badge">🎉 BINGO!</div>
+          </div>
+        )}
+        <div className="small" style={{ marginTop: '0.5rem' }}>
+          Click cell to toggle mark.
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}>
+      <div
+        className="grid"
+        style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}
+      >
         {session.items.map((it, i) => {
           const marked = marks[i];
-          let extraClass = '';
-          if (hasBingo) {
-            for (const line of bingos) {
-              if (line.indices.includes(i)) {
-                extraClass = ' bingo-line';
-                break;
-              }
-            }
-          }
+          let extra = '';
+          if (hasBingo && bingos.some((L) => L.indices.includes(i))) extra = ' bingo-line';
           return (
-            <div
-              key={i}
-              onClick={() => toggle(i)}
-              className={`grid-cell ${marked ? 'marked' : ''}${extraClass}`}
-            >
-              <div className="w-full">{it || <span className="small">[empty]</span>}</div>
-              {marked && (
-                <div className="badge" style={{ position: 'absolute', top: 6, right: 6 }}>
-                  ✓
-                </div>
-              )}
+            <div key={i} onClick={() => toggle(i)} className={`grid-cell${marked ? ' marked' : ''}${extra}`}>
+              {it || <span className="small">[empty]</span>}
+              {marked && <div className="badge" style={{ position: 'absolute', top: 6, right: 6 }}>✓</div>}
             </div>
           );
         })}
