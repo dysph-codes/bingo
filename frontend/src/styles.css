@@ -309,6 +309,78 @@ footer {
   100% { transform: scale(1); filter: brightness(1); }
 }
 
+/* Other bingo animated banner */
+@keyframes slideInFade {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.95);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes slideOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+}
+
+.other-bingo-animated {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: linear-gradient(135deg, #7c3aed 0%, #10b981 70%);
+  padding: 12px 20px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 18px 40px -10px rgba(28, 30, 62, 0.5), 0 0 20px rgba(124, 58, 237, 0.6);
+  animation: slideInFade 0.5s ease-out forwards;
+  z-index: 10050;
+  backdrop-filter: blur(6px);
+}
+
+.other-bingo-animated .other-bingo-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.other-bingo-animated .emoji {
+  font-size: 1.5rem;
+}
+
+.other-bingo-animated .text {
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.other-bingo-animated .bingo-label {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 3px 8px;
+  border-radius: 8px;
+  margin-left: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.other-bingo-animated.hide {
+  animation: slideOut 0.35s ease-in forwards;
+}
+
 /* адаптивность */
 @media (max-width: 1024px) {
   header {

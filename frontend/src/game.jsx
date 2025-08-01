@@ -1,15 +1,65 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { io } from 'socket.io-client';
 
-// вынесем парсинг sessionId
+// парсинг sessionId из URL
 function getSessionIdFromURL() {
   return new URLSearchParams(window.location.search).get('sessionId') || '';
 }
-
 function buildQuery(sessionId) {
   return sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
 }
 
-// confetti canvas, запускается при монтировании, гаснет сам через 3 секунды
+// звуковой синтез: победа и чужое бинго
+function useSounds() {
+  const ctxRef = useRef(null);
+  useEffect(() => {
+    try {
+      ctxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    } catch {}
+  }, []);
+
+  const playWin = () => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.25, now);
+    osc1.frequency.setValueAtTime(440, now); // A4
+    osc2.frequency.setValueAtTime(550, now); // C#5
+    osc1.type = 'sawtooth';
+    osc2.type = 'triangle';
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+    osc1.start(now);
+    osc2.start(now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1);
+    osc1.stop(now + 1);
+    osc2.stop(now + 1);
+  };
+
+  const playOther = () => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(660, now);
+    gain.gain.setValueAtTime(0.15, now);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.frequency.exponentialRampToValueAtTime(220, now + 0.6);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    osc.stop(now + 0.7);
+  };
+
+  return { playWin, playOther };
+}
+
 function ConfettiCanvas() {
   const canvasRef = React.useRef(null);
   const rafRef = React.useRef(null);
@@ -20,12 +70,12 @@ function ConfettiCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
 
     const createParticles = () => {
       const p = [];
-      const colors = ['#10b981', '#7c3aed', '#fff', '#ffb86c', '#5fdde5'];
+      const colors = ['#10b981', '#7c3aed', '#fff', '#ffda6b', '#5fdde5'];
       for (let i = 0; i < 140; i++) {
         p.push({
           x: Math.random() * width,
@@ -49,8 +99,7 @@ function ConfettiCanvas() {
 
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
-      const ps = particlesRef.current;
-      ps.forEach(particle => {
+      particlesRef.current.forEach((particle) => {
         particle.x += particle.vx;
         particle.y += particle.vy;
         particle.life -= 1;
@@ -138,30 +187,115 @@ function computeBingos(items, marks, size) {
   return lines;
 }
 
+function OtherBingoBanner({ info, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(() => {
+      onDone();
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <div className="other-bingo-animated">
+      <div className="other-bingo-content">
+        <div className="emoji">🎉</div>
+        <div className="text">
+          В другой игре <strong>{info.name || info.sessionId}</strong> выпало{' '}
+          <span className="bingo-label">BINGO!</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Game() {
   const [session, setSession] = useState(null);
   const [marks, setMarks] = useState({});
   const [loading, setLoading] = useState(true);
   const [bingos, setBingos] = useState([]);
   const [confettiKey, setConfettiKey] = useState(0);
+  const [error, setError] = useState(null);
+  const [otherBingoInfo, setOtherBingoInfo] = useState(null);
+
+  const prevHasBingoRef = useRef(false);
+  const socketRef = useRef(null);
 
   const sessionId = getSessionIdFromURL();
+  const { playWin, playOther } = useSounds();
+
+  const socketEndpoint = (() => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return `http://${window.location.hostname}:3000`;
+    }
+    return window.location.origin;
+  })();
+
+  useEffect(() => {
+    if (!sessionId) return;
+    // один раз инициализируем, с query sessionId
+    socketRef.current = io(socketEndpoint, {
+      path: '/socket.io',
+      query: { sessionId },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+    });
+
+    socketRef.current.on('connect', () => {
+      console.log('socket connected', socketRef.current.id, 'sessionId=', sessionId);
+    });
+    socketRef.current.on('other-bingo', (data) => {
+      if (data.sessionId === sessionId) return; // игнорировать своё
+      console.log('received other-bingo event', data);
+      setOtherBingoInfo(data);
+      playOther();
+    });
+    socketRef.current.on('disconnect', (reason) => {
+      console.log('socket disconnected', reason);
+    });
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, [socketEndpoint, sessionId, playOther]);
 
   const load = async () => {
     setLoading(true);
+    if (!sessionId) {
+      setError('sessionId missing in URL. Go to settings to create one.');
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(`/api/session${buildQuery(sessionId)}`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`Fetch session failed: ${res.status} ${txt}`);
+      }
       const data = await res.json();
       setSession(data);
       setMarks(data.marks || {});
       const lines = computeBingos(data.items, data.marks || {}, data.size);
-      const hadBingo = bingos.length > 0;
       setBingos(lines);
-      if (lines.length > 0 && !hadBingo) {
-        setConfettiKey(k => k + 1);
+
+      const hasBingoNow = lines.length > 0;
+      const hadBingoBefore = prevHasBingoRef.current;
+
+      if (hasBingoNow && !hadBingoBefore) {
+        console.log('new bingo detected, emitting to server', {
+          sessionId: data.id,
+          name: data.name,
+        });
+        socketRef.current?.emit('bingo', { sessionId: data.id, name: data.name });
+        setConfettiKey((k) => k + 1);
+        playWin();
       }
+
+      prevHasBingoRef.current = hasBingoNow;
+      setError(null);
     } catch (e) {
       console.error('Failed to load session', e);
+      setError('Session load error. Перейди в настройки и выбери сессию.');
     }
     setLoading(false);
   };
@@ -171,22 +305,36 @@ export default function Game() {
     // eslint-disable-next-line
   }, [sessionId]);
 
-  const toggle = async i => {
+  const toggle = async (i) => {
+    if (!sessionId) return;
     await fetch(`/api/mark${buildQuery(sessionId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ index: i })
+      body: JSON.stringify({ index: i }),
     });
     await load();
   };
 
   const resetMarks = async () => {
+    if (!sessionId) return;
     await fetch(`/api/reset-marks${buildQuery(sessionId)}`, { method: 'POST' });
     await load();
   };
 
   if (loading) return <div className="card">Loading...</div>;
-  if (!session || !session.items.length) {
+  if (error) {
+    return (
+      <div className="card">
+        <div className="mb-4">{error}</div>
+        <div className="button-group">
+          <a href={`/settings${buildQuery(sessionId)}`}>
+            <button className="primary">Настроить / новая сессия</button>
+          </a>
+        </div>
+      </div>
+    );
+  }
+  if (!session || !session.items?.length) {
     return (
       <div className="card">
         <div className="text-center">
@@ -208,6 +356,14 @@ export default function Game() {
 
   return (
     <div className="space-y-6">
+      {otherBingoInfo && otherBingoInfo.sessionId !== sessionId && (
+        <OtherBingoBanner
+          info={otherBingoInfo}
+          onDone={() => {
+            setOtherBingoInfo(null);
+          }}
+        />
+      )}
       {hasBingo && <ConfettiCanvas key={confettiKey} />}
 
       <div className="card flex flex-col md:flex-row gap-6 game-top">
@@ -215,6 +371,11 @@ export default function Game() {
           <h2>{session.name || 'Bingo Game'}</h2>
           <div className="small">
             Grid: {size}×{size}
+            {otherBingoInfo && otherBingoInfo.sessionId !== sessionId && (
+              <div className="text-sm text-gray-300 mt-1">
+                Другой бинго: <strong>{otherBingoInfo.name || otherBingoInfo.sessionId}</strong>
+              </div>
+            )}
           </div>
           <div className="mt-3 button-group">
             <button onClick={resetMarks} className="primary">
@@ -223,6 +384,9 @@ export default function Game() {
             <button onClick={load} className="secondary">
               Refresh
             </button>
+            <a href={`/settings${buildQuery(sessionId)}`}>
+              <button className="secondary">Edit session</button>
+            </a>
           </div>
           {hasBingo && (
             <div style={{ marginTop: '10px', position: 'relative' }}>
@@ -233,16 +397,11 @@ export default function Game() {
           )}
         </div>
         <div className="flex items-center gap-4">
-          <div className="small">
-            Click cell to toggle mark. Bingo logic auto-detected.
-          </div>
+          <div className="small">Click cell to toggle mark. Bingo logic auto-detected.</div>
         </div>
       </div>
 
-      <div
-        className="grid"
-        style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}
-      >
+      <div className="grid" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}>
         {session.items.map((it, i) => {
           const marked = marks[i];
           let extraClass = '';
@@ -260,9 +419,7 @@ export default function Game() {
               onClick={() => toggle(i)}
               className={`grid-cell ${marked ? 'marked' : ''}${extraClass}`}
             >
-              <div className="w-full">
-                {it || <span className="small">[empty]</span>}
-              </div>
+              <div className="w-full">{it || <span className="small">[empty]</span>}</div>
               {marked && (
                 <div className="badge" style={{ position: 'absolute', top: 6, right: 6 }}>
                   ✓
