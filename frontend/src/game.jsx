@@ -1,13 +1,22 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
+
+// вынесем парсинг sessionId
+function getSessionIdFromURL() {
+  return new URLSearchParams(window.location.search).get('sessionId') || '';
+}
+
+function buildQuery(sessionId) {
+  return sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
+}
 
 // confetti canvas, запускается при монтировании, гаснет сам через 3 секунды
 function ConfettiCanvas() {
-  const canvasRef = useRef(null);
-  const rafRef = useRef(null);
-  const particlesRef = useRef([]);
-  const timeoutRef = useRef(null);
+  const canvasRef = React.useRef(null);
+  const rafRef = React.useRef(null);
+  const particlesRef = React.useRef([]);
+  const timeoutRef = React.useRef(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -63,11 +72,10 @@ function ConfettiCanvas() {
     };
     draw();
 
-    // автозакрытие через 3 секунды
     timeoutRef.current = setTimeout(() => {
       cancelAnimationFrame(rafRef.current);
       ctx.clearRect(0, 0, width, height);
-    }, 5000);
+    }, 3000);
 
     return () => {
       clearTimeout(timeoutRef.current);
@@ -91,7 +99,6 @@ function ConfettiCanvas() {
 
 function computeBingos(items, marks, size) {
   const lines = [];
-  // rows
   for (let r = 0; r < size; r++) {
     let ok = true;
     const idxs = [];
@@ -102,7 +109,6 @@ function computeBingos(items, marks, size) {
     }
     if (ok) lines.push({ type: 'row', indices: idxs });
   }
-  // cols
   for (let c = 0; c < size; c++) {
     let ok = true;
     const idxs = [];
@@ -113,7 +119,6 @@ function computeBingos(items, marks, size) {
     }
     if (ok) lines.push({ type: 'col', indices: idxs });
   }
-  // diag TL-BR
   let okDiag1 = true;
   const diag1 = [];
   for (let i = 0; i < size; i++) {
@@ -122,7 +127,6 @@ function computeBingos(items, marks, size) {
     if (!marks[idx]) okDiag1 = false;
   }
   if (okDiag1) lines.push({ type: 'diag', indices: diag1 });
-  // diag TR-BL
   let okDiag2 = true;
   const diag2 = [];
   for (let i = 0; i < size; i++) {
@@ -141,10 +145,12 @@ export default function Game() {
   const [bingos, setBingos] = useState([]);
   const [confettiKey, setConfettiKey] = useState(0);
 
+  const sessionId = getSessionIdFromURL();
+
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/session');
+      const res = await fetch(`/api/session${buildQuery(sessionId)}`);
       const data = await res.json();
       setSession(data);
       setMarks(data.marks || {});
@@ -152,11 +158,10 @@ export default function Game() {
       const hadBingo = bingos.length > 0;
       setBingos(lines);
       if (lines.length > 0 && !hadBingo) {
-        // новое бинго — триггерим confetti
         setConfettiKey(k => k + 1);
       }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to load session', e);
     }
     setLoading(false);
   };
@@ -164,10 +169,10 @@ export default function Game() {
   useEffect(() => {
     load();
     // eslint-disable-next-line
-  }, []);
+  }, [sessionId]);
 
   const toggle = async i => {
-    await fetch('/api/mark', {
+    await fetch(`/api/mark${buildQuery(sessionId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ index: i })
@@ -176,7 +181,7 @@ export default function Game() {
   };
 
   const resetMarks = async () => {
-    await fetch('/api/reset-marks', { method: 'POST' });
+    await fetch(`/api/reset-marks${buildQuery(sessionId)}`, { method: 'POST' });
     await load();
   };
 
@@ -189,7 +194,7 @@ export default function Game() {
             No active session. Перейди в <strong>Settings</strong> и создай игру.
           </p>
           <div className="button-group justify-center">
-            <a href="/settings">
+            <a href={`/settings${buildQuery(sessionId)}`}>
               <button className="primary">Настроить</button>
             </a>
           </div>
@@ -208,7 +213,9 @@ export default function Game() {
       <div className="card flex flex-col md:flex-row gap-6 game-top">
         <div className="flex-1">
           <h2>{session.name || 'Bingo Game'}</h2>
-          <div className="small">Grid: {size}×{size}</div>
+          <div className="small">
+            Grid: {size}×{size}
+          </div>
           <div className="mt-3 button-group">
             <button onClick={resetMarks} className="primary">
               Reset marks

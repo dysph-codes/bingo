@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+function getSessionIdFromURL() {
+  return new URLSearchParams(window.location.search).get('sessionId') || '';
+}
+
+function buildQuery(sessionId) {
+  return sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
+}
+
 export default function Settings() {
   const [name, setName] = useState('');
   const [size, setSize] = useState(4);
@@ -7,17 +15,30 @@ export default function Settings() {
   const [session, setSession] = useState(null);
   const [status, setStatus] = useState('');
 
+  const sessionId = getSessionIdFromURL();
+
+  const fetchSession = async () => {
+    const res = await fetch(`/api/session${buildQuery(sessionId)}`);
+    const data = await res.json();
+    setSession(data);
+  };
+
   useEffect(() => {
-    fetch('/api/session')
-      .then(r => r.json())
-      .then(setSession);
-  }, []);
+    fetchSession();
+    // eslint-disable-next-line
+  }, [sessionId]);
 
   useEffect(() => {
     if (session) {
       setName(session.name);
       setSize(session.size);
       setRawItems(session.items.join('\n'));
+      // sync URL if no sessionId present
+      if (!sessionId && session.id) {
+        const u = new URL(window.location.href);
+        u.searchParams.set('sessionId', session.id);
+        window.history.replaceState(null, '', u.toString());
+      }
     }
   }, [session]);
 
@@ -25,20 +46,35 @@ export default function Settings() {
     const items = rawItems
       .split('\n')
       .map(s => s.trim());
-    const res = await fetch('/api/session', {
+    const body = {
+      name,
+      size: Number(size),
+      items,
+    };
+    if (sessionId) body.sessionId = sessionId;
+    const res = await fetch(`/api/session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, size: Number(size), items })
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     setSession(data);
     setStatus('Saved');
+    // push new sessionId into URL
+    if (data.id) {
+      const u = new URL(window.location.href);
+      u.searchParams.set('sessionId', data.id);
+      window.history.replaceState(null, '', u.toString());
+    }
     setTimeout(() => setStatus(''), 1500);
   };
 
   const resetAll = async () => {
-    const res = await fetch('/api/reset-session', { method: 'POST' });
-    setSession(await res.json());
+    // reset whole session (keeps name/size)
+    const res = await fetch(`/api/reset-session${buildQuery(sessionId)}`, { method: 'POST' });
+    const updated = await res.json();
+    setSession(updated);
+    setRawItems(updated.items.join('\n'));
     setStatus('Session reset');
     setTimeout(() => setStatus(''), 1500);
   };
@@ -91,7 +127,10 @@ export default function Settings() {
               {session && (
                 <div className="session-info">
                   Current session:{' '}
-                  <strong>{session.name || '(unnamed)'}</strong> — grid {session.size}×{session.size}
+                  <strong>{session.name || '(unnamed)'}</strong> — grid {session.size}×{session.size} —{' '}
+                  <code style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: 4 }}>
+                    {session.id}
+                  </code>
                 </div>
               )}
               {status && <div className="small">{status}</div>}
